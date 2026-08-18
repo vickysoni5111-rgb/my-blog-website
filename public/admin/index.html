@@ -130,6 +130,16 @@ code{font-family:var(--f-mono)}
   color:#c7cbd4;flex-shrink:0;position:sticky;top:0;height:100vh;
   display:flex;flex-direction:column;overflow:auto;
   position:sticky;
+  transition:transform .25s ease;
+}
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;background:rgba(8,9,13,.55);
+  z-index:39;
+}
+.menu-toggle{
+  display:none;background:#fff;border:1px solid var(--line);border-radius:9px;
+  width:38px;height:38px;flex-shrink:0;align-items:center;justify-content:center;
+  font-size:16px;
 }
 .sidebar::after{
   content:"";
@@ -165,9 +175,10 @@ code{font-family:var(--f-mono)}
 .main{flex:1;padding:26px;overflow-x:auto}
 .topbar{
   display:flex;justify-content:space-between;align-items:center;
-  margin-bottom:24px;gap:16px;
+  margin-bottom:24px;gap:16px;flex-wrap:wrap;
 }
-.topbar h1{margin:0;font-family:var(--f-display);font-size:32px;letter-spacing:.4px}
+.topbar-left{display:flex;align-items:center;gap:10px;min-width:0}
+.topbar h1{margin:0;font-family:var(--f-display);font-size:32px;letter-spacing:.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar-right{display:flex;align-items:center;gap:10px}
 .user-pill{
   background:#fff;border:1px solid var(--line);border-radius:999px;
@@ -355,17 +366,73 @@ tr:hover{background:#faf8f2}
   box-shadow:0 12px 30px rgba(0,0,0,.25);border-left:3px solid var(--gold);
 }
 
+/* ================= TABLE SCROLL WRAPPER ================= */
+.table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.table-wrap table{min-width:640px}
+
 /* ================= MOBILE ================= */
-@media(max-width:800px){
-  .sidebar{width:70px}
-  .sidebar-head{padding:16px 10px;text-align:center}
-  .sidebar-brand{font-size:15px}
-  .sidebar-user,.section-label,.nav-btn span,.logout-btn span{display:none}
-  .sidebar button.nav-btn{justify-content:center;padding:13px 5px}
-  .sidebar-bottom{padding:8px}
-  .main{padding:17px}
+@media(max-width:900px){
+  .menu-toggle{display:flex}
+  .app{display:block}
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:250px;height:100vh;
+    z-index:40;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.4);
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}
+  .main{padding:16px;width:100%}
+  .editor-side{order:2}
+}
+
+@media(max-width:640px){
+  .auth-card{padding:26px 20px}
   .topbar h1{font-size:24px}
   .user-pill{display:none}
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat-card{padding:13px}
+  .stat-card .num{font-size:20px}
+  .panel{padding:14px}
+  .quick-actions{flex-direction:column}
+  .qa-btn{width:100%}
+  .actions-cell{gap:6px}
+  .btn.small{flex:1 1 auto;min-width:0}
+  .editor-topbar{flex-direction:column;align-items:stretch}
+  .editor-topbar-left{justify-content:space-between}
+  .editor-topbar h1{font-size:21px}
+  .editor-topbar > div:last-child{display:flex;gap:8px}
+  .editor-topbar > div:last-child .btn{flex:1}
+  .title-input{font-size:23px}
+  .content-editable{min-height:220px;font-size:14px}
+  .editor-toolbar{gap:4px}
+  .tb-btn,.tb-select{padding:6px 8px;font-size:11px}
+  .rank-title{max-width:120px}
+
+  /* tables become stacked cards -- no horizontal scroll needed */
+  .table-wrap{overflow-x:visible}
+  .table-wrap table{min-width:0;width:100%}
+  .table-wrap thead{display:none}
+  .table-wrap tbody{display:block}
+  .table-wrap tr{
+    display:block;background:#fff;border:1px solid var(--line);
+    border-radius:11px;margin-bottom:12px;padding:12px 14px;
+    box-shadow:0 3px 10px rgba(30,22,10,.05);
+  }
+  .table-wrap tr:hover{background:#fff}
+  .table-wrap td{
+    display:block;border:none;padding:6px 0;font-size:12.5px;
+    border-bottom:1px dashed #f0ece2;
+  }
+  .table-wrap td:last-child{border-bottom:none;padding-bottom:0}
+  .table-wrap td:first-child{padding-top:0}
+  .table-wrap td[data-label]::before{
+    content:attr(data-label);display:block;font-size:10px;font-weight:800;
+    color:#8a8175;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;
+  }
+  .table-wrap td.actions-td{border-bottom:none;padding-top:10px}
+  .table-wrap td.actions-td::before{content:none}
+  .table-wrap td.actions-td .actions-cell{justify-content:flex-start}
+  .table-wrap td.empty-cell{text-align:center;padding:14px 0}
+  .table-wrap td.empty-cell::before{content:none}
 }
 </style>
 </head>
@@ -451,7 +518,10 @@ tr:hover{background:#faf8f2}
 
   <main class="main">
     <div class="topbar" id="topbarDefault">
-      <h1 id="pageTitle">Dashboard</h1>
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn" aria-label="Menu">☰</button>
+        <h1 id="pageTitle">Dashboard</h1>
+      </div>
       <div class="topbar-right">
         <div class="user-pill">🔐 <span id="topUserEmail">Admin</span></div>
         <button class="btn" id="newPostBtn">+ New Post</button>
@@ -460,6 +530,8 @@ tr:hover{background:#faf8f2}
     <div id="content"></div>
   </main>
 </div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <div id="toast"></div>
 
@@ -720,7 +792,20 @@ const buttons = document.querySelectorAll(".sidebar button[data-view]");
 buttons.forEach(b => b.addEventListener("click", () => {
   setActiveNav(b.dataset.view);
   loadView(b.dataset.view, b.querySelector("span")?.textContent || b.textContent.trim());
+  closeMobileSidebar();
 }));
+
+/* ================= MOBILE SIDEBAR TOGGLE ================= */
+function openMobileSidebar() {
+  document.querySelector(".sidebar").classList.add("open");
+  document.getElementById("sidebarOverlay").classList.add("open");
+}
+function closeMobileSidebar() {
+  document.querySelector(".sidebar").classList.remove("open");
+  document.getElementById("sidebarOverlay").classList.remove("open");
+}
+document.getElementById("menuToggleBtn").addEventListener("click", openMobileSidebar);
+document.getElementById("sidebarOverlay").addEventListener("click", closeMobileSidebar);
 
 function setActiveNav(view) {
   buttons.forEach(x => x.classList.toggle("active", x.dataset.view === view));
@@ -805,19 +890,19 @@ async function renderDashboard() {
             <h3>Recent Posts</h3>
             <button class="view-all" onclick="document.querySelector('.sidebar button[data-view=posts]').click()">View All</button>
           </div>
-          <table>
+          <div class="table-wrap"><table>
             <thead><tr><th>Title</th><th>Category</th><th>Status</th><th>Date</th></tr></thead>
             <tbody>
               ${(s.recentActivity || []).map(p =>
                 `<tr>
-                  <td>${p.title}</td>
-                  <td>${p.category || "-"}</td>
-                  <td><span class="badge ${p.status}">${p.status}</span></td>
-                  <td>${new Date(p.createdAt).toLocaleDateString()}</td>
+                  <td data-label="Title">${p.title}</td>
+                  <td data-label="Category">${p.category || "-"}</td>
+                  <td data-label="Status"><span class="badge ${p.status}">${p.status}</span></td>
+                  <td data-label="Date">${new Date(p.createdAt).toLocaleDateString()}</td>
                 </tr>`
-              ).join("") || "<tr><td colspan=4 class='empty'>No posts yet</td></tr>"}
+              ).join("") || "<tr><td colspan=4 class='empty empty-cell'>No posts yet</td></tr>"}
             </tbody>
-          </table>
+          </table></div>
         </div>
 
         <div class="panel">
@@ -969,7 +1054,7 @@ async function renderTopNews() {
 function postsTable(posts, showActions) {
   if (!posts || !posts.length) return "<div class='empty'>No posts found</div>";
 
-  return `<table>
+  return `<div class="table-wrap"><table>
     <thead><tr>
       <th>Title</th><th>Slug</th><th>Category</th><th>Status</th>
       <th>Top News</th><th>Views</th><th>Date</th>
@@ -978,14 +1063,14 @@ function postsTable(posts, showActions) {
     <tbody>
       ${posts.map(p => `
         <tr>
-          <td>${p.title}</td>
-          <td><code>${p.slug || "-"}</code></td>
-          <td>${p.category || "-"}</td>
-          <td><span class="badge ${p.status}">${p.status}</span></td>
-          <td>${p.featuredPost ? "<span class='badge top'>Yes</span>" : "-"}</td>
-          <td>${p.views || 0}</td>
-          <td>${new Date(p.createdAt).toLocaleDateString()}</td>
-          ${showActions ? `<td>
+          <td data-label="Title">${p.title}</td>
+          <td data-label="Slug"><code>${p.slug || "-"}</code></td>
+          <td data-label="Category">${p.category || "-"}</td>
+          <td data-label="Status"><span class="badge ${p.status}">${p.status}</span></td>
+          <td data-label="Top News">${p.featuredPost ? "<span class='badge top'>Yes</span>" : "-"}</td>
+          <td data-label="Views">${p.views || 0}</td>
+          <td data-label="Date">${new Date(p.createdAt).toLocaleDateString()}</td>
+          ${showActions ? `<td class="actions-td">
             <div class="actions-cell">
               <button class="btn small" onclick="editPost('${p._id}')">✎ Edit</button>
               <button class="btn small ${p.status === 'published' ? 'orange' : 'green'}"
@@ -1001,7 +1086,7 @@ function postsTable(posts, showActions) {
         </tr>
       `).join("")}
     </tbody>
-  </table>`;
+  </table></div>`;
 }
 
 async function toggleStatus(id, currentStatus) {
@@ -1049,11 +1134,11 @@ async function renderCategories() {
   try {
     const cats = await api("/categories");
     c.innerHTML = `<div class="panel"><h3>Categories</h3>
-      <table><thead><tr><th>ID</th><th>Title</th><th>Description</th></tr></thead><tbody>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Title</th><th>Description</th></tr></thead><tbody>
       ${(cats || []).map(cat =>
-        `<tr><td>${cat.id}</td><td>${cat.title}</td><td>${cat.description || "-"}</td></tr>`
-      ).join("") || "<tr><td colspan=3 class='empty'>No categories</td></tr>"}
-      </tbody></table></div>`;
+        `<tr><td data-label="ID">${cat.id}</td><td data-label="Title">${cat.title}</td><td data-label="Description">${cat.description || "-"}</td></tr>`
+      ).join("") || "<tr><td colspan=3 class='empty empty-cell'>No categories</td></tr>"}
+      </tbody></table></div></div>`;
   } catch(e) {
     if(e.message !== "Unauthorized") c.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
   }
@@ -1067,17 +1152,17 @@ async function renderComments() {
   try {
     const comments = await api("/comments");
     c.innerHTML = `<div class="panel"><h3>Comments</h3>
-      <table><thead><tr><th>Name</th><th>Message</th><th>On Post</th><th>Date</th><th>Actions</th></tr></thead><tbody>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Message</th><th>On Post</th><th>Date</th><th>Actions</th></tr></thead><tbody>
       ${(comments || []).map(cm => `
         <tr>
-          <td>${cm.name}</td>
-          <td>${cm.message}</td>
-          <td>${cm.post ? cm.post.title : "-"}</td>
-          <td>${new Date(cm.createdAt).toLocaleDateString()}</td>
-          <td><button class="btn small" style="background:#b91c1c" onclick="deleteComment('${cm._id}')">Delete</button></td>
+          <td data-label="Name">${cm.name}</td>
+          <td data-label="Message">${cm.message}</td>
+          <td data-label="On Post">${cm.post ? cm.post.title : "-"}</td>
+          <td data-label="Date">${new Date(cm.createdAt).toLocaleDateString()}</td>
+          <td class="actions-td"><button class="btn small" style="background:#b91c1c" onclick="deleteComment('${cm._id}')">Delete</button></td>
         </tr>
-      `).join("") || "<tr><td colspan=5 class='empty'>No comments yet</td></tr>"}
-      </tbody></table></div>`;
+      `).join("") || "<tr><td colspan=5 class='empty empty-cell'>No comments yet</td></tr>"}
+      </tbody></table></div></div>`;
   } catch(e) {
     if(e.message !== "Unauthorized") c.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
   }
