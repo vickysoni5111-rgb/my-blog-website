@@ -1,28 +1,31 @@
 const express = require("express");
 const multer = require("multer");
+const { v2: cloudinary } = require("cloudinary");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
+cloudinary.config({
+  cloud_name: "wqsxsuzd",
+  api_key:"653714997574679",
+  api_secret:"t3rCKsGukDMypeY_MWUZX0EhI9g",
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "filmycharcha-uploads",
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
   },
 });
+
 const upload = multer({ storage });
 
-// ---- POST upload single image, returns its URL ----
 router.post("/", upload.single("image"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
-
-  const fullUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-
-  res.json({ url: fullUrl });
+  res.json({ url: req.file.path });
 });
 
 module.exports = router;
