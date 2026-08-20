@@ -1,4 +1,3 @@
-
 const express = require("express");
 const multer = require("multer");
 const cloudinary = require("../lib/cloudinary");
@@ -69,6 +68,9 @@ router.get("/topnews", postController.getTopNews);
 
 // Get gallery
 router.get("/gallery", postController.getGallery);
+
+// Search posts (title, category, tags, keywords)
+router.get("/search", postController.searchPosts);
 
 // Get posts by category
 router.get(

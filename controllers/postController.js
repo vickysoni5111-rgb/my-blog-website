@@ -162,6 +162,44 @@ const getPostsByCategory = async (req, res) => {
 };
 
 // ==========================================
+// SEARCH POSTS (PUBLIC)
+// GET /api/posts/search?q=keyword
+// ==========================================
+const searchPosts = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || !q.trim()) {
+      return res.status(200).json([]);
+    }
+
+    const regex = new RegExp(q.trim(), "i");
+
+    const posts = await Post.find({
+      status: "published",
+      $or: [
+        { title: regex },
+        { category: regex },
+        { tags: regex },
+        { secondaryKeywords: regex },
+      ],
+    })
+      .select("title slug featuredImage featuredImageAlt category publishDate")
+      .sort({ publishDate: -1 })
+      .limit(10);
+
+    res.status(200).json(posts);
+  } catch (error) {
+    console.error("SEARCH POSTS ERROR:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ==========================================
 // GET POST BY SLUG (PUBLIC)
 // GET /api/posts/slug/:slug
 // ==========================================
@@ -583,6 +621,7 @@ module.exports = {
   getTopNews,
   getGallery,
   getPostsByCategory,
+  searchPosts,
   getPostBySlug,
   getPostById,
   createPost,
