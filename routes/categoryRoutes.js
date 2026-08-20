@@ -1,21 +1,30 @@
 const express = require("express");
 const multer = require("multer");
-const path = require("path");
+const cloudinary = require("../lib/cloudinary");
 const Category = require("../models/Category");
 
 const router = express.Router();
 
-// ---- Image Upload Setup (multer) ----
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/"); // backend/uploads folder me image save hogi
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  },
-});
+// ---- Cloudinary Upload Setup (memory storage, phir stream Cloudinary ko) ----
+// File ko disk par save karne ki jagah memory (RAM) me rakhte hain,
+// fir seedha Cloudinary ko stream kar dete hain. Isse Render restart
+// hone par bhi images gayab nahi hoti (pehle "uploads/" local disk
+// folder use ho raha tha jo ephemeral hai).
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+function uploadBufferToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "filmycharcha-categories" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+}
 
 // ---- GET all categories ----
 router.get("/", async (req, res) => {
@@ -45,7 +54,11 @@ router.post("/", upload.single("image"), async (req, res) => {
   try {
     const { id, title, description, fullContent } = req.body;
 
-    const imagePath = req.file ? `/uploads/${req.file.filename}` : "";
+    let imagePath = "";
+    if (req.file) {
+      const result = await uploadBufferToCloudinary(req.file.buffer);
+      imagePath = result.secure_url;
+    }
 
     const newCategory = new Category({
       id,
@@ -74,7 +87,8 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     };
 
     if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+      const result = await uploadBufferToCloudinary(req.file.buffer);
+      updateData.image = result.secure_url;
     }
 
     const updated = await Category.findOneAndUpdate(

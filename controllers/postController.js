@@ -308,9 +308,11 @@ const createPost = async (req, res) => {
         body.allowComments === "on";
     }
 
-    // Uploaded image
-    if (req.file) {
-      body.featuredImage = `/uploads/${req.file.filename}`;
+    // Uploaded image — ab Cloudinary se aayi hui secure_url use hogi
+    // (pehle: `/uploads/${req.file.filename}` — local disk path tha
+    // jo Render restart hone par delete ho jata tha)
+    if (req.cloudinaryUrl) {
+      body.featuredImage = req.cloudinaryUrl;
     }
 
     // Create post
@@ -402,9 +404,11 @@ const updatePost = async (req, res) => {
       }
     }
 
-    // Uploaded image
-    if (req.file) {
-      body.featuredImage = `/uploads/${req.file.filename}`;
+    // Uploaded image — ab Cloudinary se aayi hui secure_url use hogi
+    // (pehle: `/uploads/${req.file.filename}` — local disk path tha
+    // jo Render restart hone par delete ho jata tha)
+    if (req.cloudinaryUrl) {
+      body.featuredImage = req.cloudinaryUrl;
     }
 
     Object.assign(post, body);

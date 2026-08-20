@@ -1,5 +1,7 @@
+
 const express = require("express");
 const multer = require("multer");
+const cloudinary = require("../lib/cloudinary");
 
 const router = express.Router();
 
@@ -11,27 +13,49 @@ const postController = require("../controllers/postController");
 const authMiddleware = require("../authMiddleware");
 
 // ==========================================
-// MULTER CONFIGURATION
+// MULTER + CLOUDINARY CONFIGURATION
 // ==========================================
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-
-  filename: (req, file, cb) => {
-    cb(
-      null,
-      Date.now() +
-        "-" +
-        file.originalname.replace(/\s+/g, "-")
-    );
-  },
-});
+// File ko disk par save karne ki jagah memory (RAM) me rakhte hain,
+// fir seedha Cloudinary ko stream kar dete hain. Isse Render restart
+// hone par bhi images gayab nahi hoti (pehle local /uploads folder
+// use ho raha tha jo ephemeral hai).
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
 });
+
+// Multer ke baad chalne wala middleware — file buffer ko Cloudinary
+// par upload karke result ka secure_url req.cloudinaryUrl me daal deta hai,
+// jise aage controller (createPost / updatePost) use karta hai.
+const uploadToCloudinary = async (req, res, next) => {
+  if (!req.file) return next();
+
+  try {
+    const streamUpload = () =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "filmycharcha-posts" },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+
+    const result = await streamUpload();
+    req.cloudinaryUrl = result.secure_url;
+    next();
+  } catch (err) {
+    console.error("Cloudinary upload error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Image upload failed",
+    });
+  }
+};
 
 // ==========================================
 // PUBLIC GET ROUTES (visible on the website, no login needed)
@@ -77,6 +101,7 @@ router.post(
   "/",
   authMiddleware,
   upload.single("featuredImage"),
+  uploadToCloudinary,
   postController.createPost
 );
 
@@ -89,6 +114,7 @@ router.put(
   "/:id",
   authMiddleware,
   upload.single("featuredImage"),
+  uploadToCloudinary,
   postController.updatePost
 );
 

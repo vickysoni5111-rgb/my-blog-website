@@ -27,11 +27,15 @@ exports.getStoryBySlug = async (req, res) => {
 exports.createStory = async (req, res) => {
   try {
     const { title, author, category } = req.body;
-    const files = req.files;
-    if (!files || files.length === 0) {
+
+    // Ab image paths Cloudinary se aayenge (route middleware ne
+    // req.cloudinaryUrls me daal diye hain) — pehle yaha
+    // `/uploads/${f.filename}` local disk path banta tha jo
+    // Render restart hone par delete ho jata tha.
+    const imagePaths = req.cloudinaryUrls;
+    if (!imagePaths || imagePaths.length === 0) {
       return res.status(400).json({ message: "At least one image required" });
     }
-    const imagePaths = files.map((f) => `/uploads/${f.filename}`);
 
     let slug = title
       .toLowerCase()
